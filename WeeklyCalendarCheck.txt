@@ -1,0 +1,93 @@
+//Client = ' '
+//Client_Name = ' '
+//User_Name = ' '
+
+//Grabs itinerary of external meetings from Client's calendar and composes a draft in User's gmail to Client with schedule
+function main() {
+  var events = getschedule1(); // sets variable 'events' to array from the getschedule function
+  var html = '<ul>';
+
+  for(var i=0; i<events.length; i++) {
+    html += '<li>' + events[i] + '</li>';
+  }
+  html += '</ul>';
+
+  WeeklyCalCheck(html);
+}
+
+//Composes HTML draft in User's gmail to Client with Schedule
+function WeeklyCalCheck(events) {
+  var recipient = Client;
+  var subject = "Weekly Calendar Check";
+  var signature = Gmail.Users.Settings.SendAs.list("me").sendAs.filter(function(account){if(account.isDefault){return true}})[0].signature;
+  var options = {
+    //optional cc:
+  };
+  options.htmlBody = "Hi "+ Client_Name + "," +'<br />'+'<br />'+ "Here is your schedule for next week." +'<br />' + events
+ + "All the best," +'<br />'+'<br />'+ User_Name + '<br />'+ '<br />'+ "--" + '<br />'+ signature;
+
+  GmailApp.createDraft(recipient, subject, ' ', options);
+}
+
+//Gets schedule from Client's calendar, must allow app access in client's account
+function getschedule1() {
+
+  var nextMonday = new Date(); //Creates a variable and sets it to the upcoming Monday
+  Logger.log(nextMonday);
+  nextMonday.setDate(nextMonday.getDate() + (1 + 7 - nextMonday.getDay()) % 7);
+  Logger.log(nextMonday);
+
+  var nextFriday = new Date(); //Creates a variable and sets it to the Friday following that Monday
+  nextFriday = dateAdd(nextMonday, 'day', 4);
+  Logger.log(nextFriday);
+
+  var itinerary = CalendarApp.getCalendarById(Client).getEvents(nextMonday, nextFriday); //gets all Events from Calendar for next week Mon through Friday
+
+  var myEvents = []; //adds Events to variable
+    for (var i = 0; i < itinerary.length; i++) {
+      var eventinfo = itinerary[i].getStartTime(); //assigns date and time of event to a variable
+      var startinghour = eventinfo.getHours(); //assigns the start time hour from 0-24 for the event to a variable
+      var weekday = eventinfo.getDay(); //assigns the day of the week from 0-6 for the event to a variable
+
+      var weekdays = new Array(7); //translates the integar weekday to a string of the full weekday name
+      weekdays[0] = "Sunday";
+      weekdays[1] = "Monday";
+      weekdays[2] = "Tuesday";
+      weekdays[3] = "Wednesday";
+      weekdays[4] = "Thursday";
+      weekdays[5] = "Friday";
+      weekdays[6] = "Saturday";
+
+      if (/*(startinghour > 6 && startinghour < 19) && */itinerary[i].isRecurringEvent() == false) {
+        myEvents.push(weekdays[weekday] + " - " + itinerary[i].getTitle())
+      }
+    }
+  return myEvents
+}
+
+/**
+ * Adds time to a date. Modelled after MySQL DATE_ADD function.
+ * Example: dateAdd(new Date(), 'minute', 30)  //returns 30 minutes from now.
+ * https://stackoverflow.com/a/1214753/18511
+ *
+ * @param date  Date to start with
+ * @param interval  One of: year, quarter, month, week, day, hour, minute, second
+ * @param units  Number of units of the given interval to add.
+ */
+
+function dateAdd(date, interval, units) {
+  var ret = new Date(date); //don't change original date
+  var checkRollover = function() { if(ret.getDate() != date.getDate()) ret.setDate(0);};
+  switch(interval.toLowerCase()) {
+    case 'year'   :  ret.setFullYear(ret.getFullYear() + units); checkRollover();  break;
+    case 'quarter':  ret.setMonth(ret.getMonth() + 3*units); checkRollover();  break;
+    case 'month'  :  ret.setMonth(ret.getMonth() + units); checkRollover();  break;
+    case 'week'   :  ret.setDate(ret.getDate() + 7*units);  break;
+    case 'day'    :  ret.setDate(ret.getDate() + units);  break;
+    case 'hour'   :  ret.setTime(ret.getTime() + units*3600000);  break;
+    case 'minute' :  ret.setTime(ret.getTime() + units*60000);  break;
+    case 'second' :  ret.setTime(ret.getTime() + units*1000);  break;
+    default       :  ret = undefined;  break;
+  }
+  return ret;
+}
